@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Date Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary:    #0B0B0C;
+            --bg-secondary:  #111111;
+            --bg-tertiary:   #171717;
+            --border:        rgba(255,255,255,0.08);
+            --text-primary:  #FFFFFF;
+            --text-secondary:rgba(255,255,255,0.55);
+            --text-tertiary: rgba(255,255,255,0.35);
+            --accent:        #FFFFFF;
+            --dot-completed: #FFFFFF;
+            --dot-remaining: rgba(255,255,255,0.12);
+            --dot-current:   #FF453A;
+            --overlay:       rgba(0,0,0,0.45);
+            --font:          -apple-system,BlinkMacSystemFont,"SF Pro Display",Inter,system-ui,sans-serif;
+        }
+        [data-theme="light"] {
+            --bg-primary:    #F5F5F7;
+            --bg-secondary:  #FFFFFF;
+            --bg-tertiary:   #F0F0F2;
+            --border:        rgba(0,0,0,0.08);
+            --text-primary:  #111111;
+            --text-secondary:rgba(0,0,0,0.55);
+            --text-tertiary: rgba(0,0,0,0.35);
+            --accent:        #111111;
+            --dot-completed: #111111;
+            --dot-remaining: rgba(0,0,0,0.12);
+            --dot-current:   #FF3B30;
+            --overlay:       rgba(0,0,0,0.2);
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font);
+            font-size: 16px;
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        /* ── BRAND ── */
+        .brand-title {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-style: italic;
+            font-weight: 600;
+            font-size: 22px;
+            letter-spacing: 0.01em;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+
+        /* ── HEADER ── */
+        .header {
+            padding: 14px 24px;
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(20px);
+            position: sticky;
+            top: 0;
+            z-index: 90;
+        }
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .header-actions {
+            display: flex;
+            gap: 2px;
+            align-items: center;
+            margin-left: auto;
+        }
+
+        /* ── ICON BUTTONS ── */
+        .icon-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            width: 36px;
+            height: 36px;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.18s, color 0.18s, transform 0.12s;
+            flex-shrink: 0;
+        }
+        .icon-btn:hover  { background: var(--bg-tertiary); color: var(--text-primary); }
+        .icon-btn:active { transform: scale(0.9); }
+        .icon-btn.active-toggle { color: var(--text-primary); background: var(--bg-tertiary); }
+        .icon-btn svg {
+            width: 18px; height: 18px;
+            stroke: currentColor; fill: none;
+            stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
+        }
+
+        /* ── FULLSCREEN OVERLAY ── */
+        .fullscreen-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-primary);
+            z-index: 300;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+            /* scrollable */
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .fullscreen-overlay.active { opacity: 1; pointer-events: all; }
+
+        .fullscreen-header {
+            width: 100%;
+            max-width: 960px;
+            display: flex;
+            justify-content: flex-end;
+            padding: 16px 16px 0;
+            flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .fullscreen-close {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: background 0.18s, color 0.18s, transform 0.12s;
+            flex-shrink: 0;
+        }
+        .fullscreen-close:hover  { background: var(--border); color: var(--text-primary); }
+        .fullscreen-close:active { transform: scale(0.9); }
+        .fullscreen-close svg {
+            width: 14px; height: 14px;
+            stroke: currentColor; fill: none;
+            stroke-width: 2; stroke-linecap: round;
+        }
+
+        .fullscreen-body {
+            width: 100%;
+            max-width: 960px;
+            padding: 12px 16px 32px;
+            flex: 1;
+        }
+
+        .fullscreen-dot-grid-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 28px;
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .fullscreen-dot-grid {
+            display: grid;
+            gap: 8px;
+            width: 100%;
+        }
+
+        /* ── BUTTONS ── */
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg-primary);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 500;
+            font-size: 15px;
+            font-family: var(--font);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: filter 0.18s, transform 0.12s;
+        }
+        .btn-primary:hover  { filter: brightness(0.92); }
+        .btn-primary:active { transform: scale(0.96); }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            padding: 10px 18px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            font-family: var(--font);
+            cursor: pointer;
+            transition: background 0.18s, transform 0.12s;
+        }
+        .btn-secondary:hover  { background: var(--border); }
+        .btn-secondary:active { transform: scale(0.96); }
+
+        /* ── MODAL ── */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--overlay);
+            backdrop-filter: blur(8px);
+            z-index: 200;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: all; }
+
+        .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.95);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            padding: 28px;
+            max-width: 460px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            z-index: 210;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+        }
+        .modal.active {
+            opacity: 1;
+            pointer-events: all;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+            margin-bottom: 4px;
+        }
+        .modal-subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 22px;
+        }
+
+        .input-group { margin-bottom: 16px; }
+        .input-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 7px;
+            color: var(--text-secondary);
+        }
+        input[type="date"] {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-family: var(--font);
+            font-size: 15px;
+            transition: border-color 0.18s;
+        }
+        input[type="date"]:focus {
+            outline: none;
+            border-color: rgba(255,255,255,0.3);
+        }
+
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin: 16px 0 22px;
+        }
+        .preset-btn {
+            padding: 10px 12px;
+            font-size: 13px;
+            font-weight: 500;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            color: var(--text-primary);
+            font-family: var(--font);
+            cursor: pointer;
+            transition: background 0.18s;
+        }
+        .preset-btn:hover { background: rgba(255,255,255,0.07); }
+        .preset-btn.active { background: var(--accent); color: var(--bg-primary); border-color: var(--accent); }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        /* ── TOOLTIP ── */
+        .tooltip {
+            position: fixed;
+            background: rgba(0,0,0,0.88);
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 7px;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 500;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+        .tooltip.active { opacity: 1; }
+
+        /* ── CONTAINER ── */
+        .container {
+            flex: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 40px 24px;
+        }
+
+        /* ── EMPTY STATE ── */
+        .empty-state { text-align: center; padding: 80px 24px; }
+        .empty-state-illustration {
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+            flex-wrap: wrap;
+            max-width: 200px;
+            margin: 0 auto 28px;
+            opacity: 0.25;
+        }
+        .empty-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--dot-remaining); }
+        .empty-state-title { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+        .empty-state-text  { font-size: 15px; color: var(--text-secondary); margin-bottom: 28px; max-width: 340px; margin-left: auto; margin-right: auto; line-height: 1.6; }
+
+        /* ── VISUALIZATION ── */
+        .visualization { margin-bottom: 28px; }
+        .dot-grid-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 20px 24px;
+            overflow-x: hidden;
+            overflow-y: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        .dot-grid {
+            display: grid;
+            gap: 8px;
+            flex-shrink: 0;
+            /* center dots horizontally */
+            margin: 0 auto;
+        }
+
+        /* dots */
+        .dot {
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background: var(--dot-remaining);
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .dot.completed { background: var(--dot-completed); box-shadow: 0 0 4px rgba(255,255,255,0.12); }
+        .dot.current   {
+            background: var(--dot-current);
+            box-shadow: 0 0 10px var(--dot-current);
+            animation: dotPulse 2s ease-in-out infinite;
+        }
+        .dot:hover { transform: scale(1.35); }
+        @keyframes dotPulse {
+            0%,100% { transform: scale(1); }
+            50%      { transform: scale(1.25); }
+        }
+
+        /* ── STATS ── */
+        .stats {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 24px 28px;
+            margin-bottom: 24px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.5px;
+            margin-bottom: 4px;
+        }
+        .stat-label {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        /* ── PROGRESS ── */
+        .progress-section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 24px 28px;
+        }
+        .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .progress-label  { font-size: 12px; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
+        .progress-percent{ font-size: 14px; font-weight: 600; }
+        .progress-bar    { height: 5px; background: var(--dot-remaining); border-radius: 3px; overflow: hidden; }
+        .progress-fill   { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
+
+        /* ── CONFETTI ── */
+        .confetti { position: fixed; pointer-events: none; z-index: 1000; }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 768px) {
+            .container { padding: 24px 14px; }
+            .stats, .progress-section { padding: 18px; }
+            .dot-grid-container { padding: 16px 18px; }
+        }
+        @media (max-width: 480px) {
+            .header { padding: 11px 14px; }
+            .brand-title { font-size: 18px; }
+            .container { padding: 16px 12px; }
+            .stats, .progress-section { padding: 14px; border-radius: 14px; }
+            .stat-value { font-size: 22px; }
+            .dot-grid-container { padding: 12px 14px; border-radius: 14px; }
+            .modal { width: 96%; padding: 20px; border-radius: 20px; max-height: 85vh; }
+            .modal-title { font-size: 18px; }
+            .preset-grid { grid-template-columns: 1fr; }
+            .modal-actions {
+                flex-direction: column-reverse;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .modal-actions .btn-primary,
+            .modal-actions .btn-secondary { width: 100%; justify-content: center; }
+            .empty-state { padding: 50px 14px; }
+            /* fullscreen on mobile */
+            .fullscreen-body { padding: 8px 10px 24px; }
+            .fullscreen-dot-grid-container { padding: 14px; border-radius: 14px; }
+            .fullscreen-header { padding: 12px 10px 0; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════ HEADER ═══════════════ -->
+<header class="header">
+    <div class="header-content">
+        <i class="brand-title">PriyanshuValiya</i>
+        <div class="header-actions">
+
+            <!-- Calendar -->
+            <button class="icon-btn" id="calendarBtn" aria-label="Select dates" title="Select dates (C)">
+                <svg viewBox="0 0 24 24">
+                    <rect x="3" y="4" width="18" height="18" rx="3"/>
+                    <path d="M3 9h18M8 2v4M16 2v4"/>
+                </svg>
+            </button>
+
+            <!-- Fill Direction Toggle: horizontal ↔ vertical -->
+            <button class="icon-btn" id="directionBtn" aria-label="Toggle fill direction" title="Toggle fill direction (V)">
+                <!-- Horizontal icon (default shown) -->
+                <svg id="iconHoriz" viewBox="0 0 24 24">
+                    <rect x="2" y="5" width="4" height="14" rx="1.5" fill="currentColor" stroke="none" opacity="0.9"/>
+                    <rect x="8" y="5" width="4" height="14" rx="1.5" fill="currentColor" stroke="none" opacity="0.5"/>
+                    <rect x="14" y="5" width="4" height="14" rx="1.5" fill="currentColor" stroke="none" opacity="0.2"/>
+                    <rect x="20" y="5" width="2" height="14" rx="1" fill="currentColor" stroke="none" opacity="0.1"/>
+                </svg>
+                <!-- Vertical icon (hidden initially) -->
+                <svg id="iconVert" viewBox="0 0 24 24" style="display:none">
+                    <rect x="5" y="2" width="14" height="4" rx="1.5" fill="currentColor" stroke="none" opacity="0.9"/>
+                    <rect x="5" y="8" width="14" height="4" rx="1.5" fill="currentColor" stroke="none" opacity="0.5"/>
+                    <rect x="5" y="14" width="14" height="4" rx="1.5" fill="currentColor" stroke="none" opacity="0.2"/>
+                    <rect x="5" y="20" width="14" height="2" rx="1" fill="currentColor" stroke="none" opacity="0.1"/>
+                </svg>
+            </button>
+
+            <!-- Theme -->
+            <button class="icon-btn" id="themeToggle" aria-label="Toggle theme" title="Toggle theme (T)">
+                <svg id="iconMoon" viewBox="0 0 24 24">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+                <svg id="iconSun" viewBox="0 0 24 24" style="display:none">
+                    <circle cx="12" cy="12" r="5"/>
+                    <line x1="12" y1="1"  x2="12" y2="3"/>
+                    <line x1="12" y1="21" x2="12" y2="23"/>
+                    <line x1="4.22" y1="4.22"  x2="5.64" y2="5.64"/>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                    <line x1="1"  y1="12" x2="3"  y2="12"/>
+                    <line x1="21" y1="12" x2="23" y2="12"/>
+                    <line x1="4.22"  y1="19.78" x2="5.64"  y2="18.36"/>
+                    <line x1="18.36" y1="5.64"  x2="19.78" y2="4.22"/>
+                </svg>
+            </button>
+
+            <!-- Fullscreen / Enlarge -->
+            <button class="icon-btn" id="enlargeBtn" aria-label="Fullscreen view" title="Fullscreen (F)">
+                <svg viewBox="0 0 24 24">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3"/>
+                    <path d="M21 8V5a2 2 0 0 0-2-2h-3"/>
+                    <path d="M3 16v3a2 2 0 0 0 2 2h3"/>
+                    <path d="M16 21h3a2 2 0 0 0 2-2v-3"/>
+                </svg>
+            </button>
+
+        </div>
+    </div>
+</header>
+
+<!-- ═══════════════ MAIN ═══════════════ -->
+<div class="container">
+
+    <!-- Empty State -->
+    <div class="empty-state" id="emptyState">
+        <div class="empty-state-illustration" id="emptyIllustration"></div>
+        <div class="empty-state-title">No active countdown</div>
+        <div class="empty-state-text">Choose two dates to begin tracking your future.</div>
+        <button class="btn-primary" id="createCountdownBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Create Countdown
+        </button>
+    </div>
+
+    <!-- Dot Grid -->
+    <div class="visualization" id="visualization" style="display:none">
+        <div class="dot-grid-container">
+            <div class="dot-grid" id="dotGrid" role="img" aria-label="Duration visualization"></div>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats" id="stats" style="display:none">
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-value" id="statDays">0</div>
+                <div class="stat-label">Days</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="statMonths">0</div>
+                <div class="stat-label">Months</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="statWeeks">0</div>
+                <div class="stat-label">Weeks</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-section" id="progressSection" style="display:none">
+        <div class="progress-header">
+            <span class="progress-label">Progress</span>
+            <span class="progress-percent" id="progressPercent">0%</span>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ═══════════════ FULLSCREEN ═══════════════ -->
+<div class="fullscreen-overlay" id="fullscreenOverlay" role="dialog" aria-modal="true" aria-label="Fullscreen dot grid">
+    <div class="fullscreen-header">
+        <button class="fullscreen-close" id="fullscreenClose" aria-label="Close fullscreen">
+            <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+    </div>
+    <div class="fullscreen-body">
+        <div class="fullscreen-dot-grid-container">
+            <div class="fullscreen-dot-grid" id="fullscreenDotGrid"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ MODAL ═══════════════ -->
+<div class="modal-overlay" id="modalOverlay"></div>
+<div class="modal" id="dateModal" role="dialog" aria-modal="true" aria-labelledby="modalTitleText">
+    <div class="modal-title" id="modalTitleText">Select dates</div>
+    <div class="modal-subtitle">Choose your start and end dates</div>
+
+    <div class="input-group">
+        <label class="input-label" for="fromDate">From</label>
+        <input type="date" id="fromDate">
+    </div>
+    <div class="input-group">
+        <label class="input-label" for="toDate">To</label>
+        <input type="date" id="toDate">
+    </div>
+
+    <div class="preset-grid">
+        <button class="preset-btn" data-preset="today">Today</button>
+        <button class="preset-btn" data-preset="tomorrow">Tomorrow</button>
+        <button class="preset-btn" data-preset="1-month">1 Month</button>
+        <button class="preset-btn" data-preset="6-months">6 Months</button>
+        <button class="preset-btn" data-preset="1-year">1 Year</button>
+        <button class="preset-btn" data-preset="5-years">5 Years</button>
+        <button class="preset-btn" data-preset="10-years">10 Years</button>
+        <button class="preset-btn" data-preset="custom">Custom</button>
+    </div>
+
+    <div class="modal-actions">
+        <button class="btn-secondary" id="modalCancel">Cancel</button>
+        <button class="btn-primary"   id="modalApply">Apply</button>
+    </div>
+</div>
+
+<!-- Tooltip -->
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+/* ═══════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════ */
+const state = {
+    fromDate:    localStorage.getItem('pt_from') || null,
+    toDate:      localStorage.getItem('pt_to')   || null,
+    theme:       localStorage.getItem('pt_theme') || 'dark',
+    fillDir:     localStorage.getItem('pt_dir')  || 'horizontal', // 'horizontal' | 'vertical'
+    targetDone:  false,
+    gridCols:    1,
+    resizeTimer: null
+};
+
+/* ═══════════════════════════════════════════
+   DOM REFS
+═══════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const DOM = {
+    calendarBtn:     $('calendarBtn'),
+    directionBtn:    $('directionBtn'),
+    iconHoriz:       $('iconHoriz'),
+    iconVert:        $('iconVert'),
+    themeToggle:     $('themeToggle'),
+    iconMoon:        $('iconMoon'),
+    iconSun:         $('iconSun'),
+    enlargeBtn:      $('enlargeBtn'),
+    dateModal:       $('dateModal'),
+    modalOverlay:    $('modalOverlay'),
+    fromDate:        $('fromDate'),
+    toDate:          $('toDate'),
+    modalCancel:     $('modalCancel'),
+    modalApply:      $('modalApply'),
+    presetBtns:      document.querySelectorAll('.preset-btn'),
+    dotGrid:         $('dotGrid'),
+    visualization:   $('visualization'),
+    stats:           $('stats'),
+    progressSection: $('progressSection'),
+    emptyState:      $('emptyState'),
+    emptyIllust:     $('emptyIllustration'),
+    createBtn:       $('createCountdownBtn'),
+    statDays:        $('statDays'),
+    statMonths:      $('statMonths'),
+    statWeeks:       $('statWeeks'),
+    progressFill:    $('progressFill'),
+    progressPct:     $('progressPercent'),
+    tooltip:         $('tooltip'),
+    fsOverlay:       $('fullscreenOverlay'),
+    fsClose:         $('fullscreenClose'),
+    fsDotGrid:       $('fullscreenDotGrid')
+};
+
+/* ═══════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════ */
+function init() {
+    applyTheme();
+    applyDirIcon();
+    restoreDates();
+    bindEvents();
+    // Use debounced resize — fixes ResizeObserver loop error
+    const ro = new ResizeObserver(() => {
+        clearTimeout(state.resizeTimer);
+        state.resizeTimer = setTimeout(() => {
+            recalcGrid();
+            renderDots();
+        }, 50);
+    });
+    ro.observe(DOM.dotGrid.parentElement);
+    updateDisplay();
+    setInterval(updateDisplay, 1000);
+}
+
+/* ═══════════════════════════════════════════
+   THEME
+═══════════════════════════════════════════ */
+function applyTheme() {
+    document.documentElement.setAttribute('data-theme', state.theme);
+    DOM.iconMoon.style.display = state.theme === 'dark'  ? '' : 'none';
+    DOM.iconSun.style.display  = state.theme === 'light' ? '' : 'none';
+}
+function toggleTheme() {
+    state.theme = state.theme === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('pt_theme', state.theme);
+    applyTheme();
+}
+
+/* ═══════════════════════════════════════════
+   FILL DIRECTION TOGGLE
+═══════════════════════════════════════════ */
+function applyDirIcon() {
+    const isH = state.fillDir === 'horizontal';
+    DOM.iconHoriz.style.display = isH ? '' : 'none';
+    DOM.iconVert.style.display  = isH ? 'none' : '';
+    DOM.directionBtn.title = isH ? 'Switch to vertical fill (V)' : 'Switch to horizontal fill (V)';
+}
+function toggleDirection() {
+    state.fillDir = state.fillDir === 'horizontal' ? 'vertical' : 'horizontal';
+    localStorage.setItem('pt_dir', state.fillDir);
+    applyDirIcon();
+    recalcGrid();
+    renderDots();
+    syncFsGrid();
+}
+
+/* ═══════════════════════════════════════════
+   STORAGE
+═══════════════════════════════════════════ */
+function restoreDates() {
+    if (state.fromDate) DOM.fromDate.value = state.fromDate;
+    if (state.toDate)   DOM.toDate.value   = state.toDate;
+}
+function saveDates() {
+    if (state.fromDate) localStorage.setItem('pt_from', state.fromDate);
+    else                localStorage.removeItem('pt_from');
+    if (state.toDate)   localStorage.setItem('pt_to', state.toDate);
+    else                localStorage.removeItem('pt_to');
+}
+
+/* ═══════════════════════════════════════════
+   EVENTS
+═══════════════════════════════════════════ */
+function bindEvents() {
+    DOM.calendarBtn.addEventListener('click', openModal);
+    DOM.directionBtn.addEventListener('click', toggleDirection);
+    DOM.themeToggle.addEventListener('click', toggleTheme);
+    DOM.enlargeBtn.addEventListener('click', openFullscreen);
+    DOM.fsClose.addEventListener('click', closeFullscreen);
+    DOM.createBtn.addEventListener('click', openModal);
+    DOM.fromDate.addEventListener('change', () => { state.fromDate = DOM.fromDate.value; saveDates(); });
+    DOM.toDate.addEventListener('change',   () => { state.toDate   = DOM.toDate.value;   saveDates(); });
+    DOM.modalCancel.addEventListener('click', closeModal);
+    DOM.modalApply.addEventListener('click', applyModal);
+    DOM.modalOverlay.addEventListener('click', closeModal);
+    DOM.presetBtns.forEach(b => b.addEventListener('click', () => applyPreset(b.dataset.preset)));
+    document.addEventListener('keydown', onKey);
+}
+
+function onKey(e) {
+    if (e.target.tagName === 'INPUT') return;
+    switch (e.key.toLowerCase()) {
+        case 'c': openModal(); break;
+        case 't': toggleTheme(); break;
+        case 'v': toggleDirection(); break;
+        case 'f':
+            DOM.fsOverlay.classList.contains('active') ? closeFullscreen() : openFullscreen();
+            break;
+        case 'escape':
+            if (DOM.fsOverlay.classList.contains('active')) closeFullscreen();
+            else closeModal();
+            break;
+        case 'enter':
+            if (DOM.dateModal.classList.contains('active')) applyModal();
+            break;
+    }
+}
+
+/* ═══════════════════════════════════════════
+   MODAL
+═══════════════════════════════════════════ */
+function openModal() {
+    DOM.dateModal.classList.add('active');
+    DOM.modalOverlay.classList.add('active');
+    setTimeout(() => DOM.fromDate.focus(), 60);
+}
+function closeModal() {
+    DOM.dateModal.classList.remove('active');
+    DOM.modalOverlay.classList.remove('active');
+}
+function applyModal() {
+    state.fromDate = DOM.fromDate.value;
+    state.toDate   = DOM.toDate.value;
+    saveDates();
+    updateDisplay();
+    closeModal();
+}
+function applyPreset(preset) {
+    const today = new Date();
+    const map = {
+        'today':    [today, today],
+        'tomorrow': [addDays(today,1), addDays(today,1)],
+        '1-month':  [today, addMonths(today,1)],
+        '6-months': [today, addMonths(today,6)],
+        '1-year':   [today, addYears(today,1)],
+        '5-years':  [today, addYears(today,5)],
+        '10-years': [today, addYears(today,10)],
+        'custom':   null
+    };
+    if (map[preset]) {
+        DOM.fromDate.value = fmt(map[preset][0]);
+        DOM.toDate.value   = fmt(map[preset][1]);
+    }
+    DOM.presetBtns.forEach(b => b.classList.toggle('active', b.dataset.preset === preset));
+}
+
+/* ═══════════════════════════════════════════
+   FULLSCREEN — scrollable, no overflow
+═══════════════════════════════════════════ */
+function openFullscreen() {
+    if (!state.fromDate || !state.toDate) return;
+    DOM.fsOverlay.classList.add('active');
+    // slight delay so overlay is visible before we measure width
+    setTimeout(syncFsGrid, 60);
+}
+function closeFullscreen() {
+    DOM.fsOverlay.classList.remove('active');
+}
+
+function syncFsGrid() {
+    if (!DOM.fsOverlay.classList.contains('active')) return;
+    const dur = calcDuration();
+    if (!dur) return;
+
+    const MAX_DOTS = 3650;
+    const totalDots = Math.min(dur.totalDays, MAX_DOTS);
+    const container = DOM.fsDotGrid.parentElement;
+    const padH   = 28;
+    const padV   = 28;
+    const dotSize = 12;
+    const gap     = 8;
+    const availW  = Math.max(10, container.clientWidth  - padH * 2);
+    const availH  = Math.max(10, container.clientHeight - padV * 2);
+
+    if (state.fillDir === 'horizontal') {
+        const cols = Math.max(1, Math.floor((availW + gap) / (dotSize + gap)));
+        DOM.fsDotGrid.style.gridTemplateColumns = `repeat(${cols}, ${dotSize}px)`;
+        DOM.fsDotGrid.style.gridTemplateRows    = '';
+        DOM.fsDotGrid.style.gridAutoFlow        = 'row';
+        DOM.fsDotGrid.style.width               = '';
+        DOM.fsDotGrid.style.height              = '';
+    } else {
+        // Use container height to set rows; columns scroll right
+        const rows   = Math.max(1, Math.floor((availH + gap) / (dotSize + gap)));
+        const cols   = Math.ceil(totalDots / rows);
+        const totalW = cols * dotSize + (cols - 1) * gap;
+        DOM.fsDotGrid.style.gridTemplateRows    = `repeat(${rows}, ${dotSize}px)`;
+        DOM.fsDotGrid.style.gridTemplateColumns = `repeat(${cols}, ${dotSize}px)`;
+        DOM.fsDotGrid.style.gridAutoFlow        = 'column';
+        DOM.fsDotGrid.style.width               = totalW + 'px';
+        DOM.fsDotGrid.style.height              = (rows * dotSize + (rows - 1) * gap) + 'px';
+    }
+    DOM.fsDotGrid.style.gap = `${gap}px`;
+
+    // Build dots
+    DOM.fsDotGrid.innerHTML = '';
+    for (let i = 0; i < totalDots; i++) {
+        const d = document.createElement('div');
+        const bg = i < dur.elapsedDays  ? 'var(--dot-completed)'
+                 : i === dur.elapsedDays ? 'var(--dot-current)'
+                 : 'var(--dot-remaining)';
+        d.style.cssText = `width:${dotSize}px;height:${dotSize}px;border-radius:50%;background:${bg};flex-shrink:0;`;
+        if (i === dur.elapsedDays) {
+            d.style.boxShadow = '0 0 10px var(--dot-current)';
+            d.style.animation = 'dotPulse 2s ease-in-out infinite';
+        }
+        DOM.fsDotGrid.appendChild(d);
+    }
+}
+
+/* ═══════════════════════════════════════════
+   CALCULATIONS
+═══════════════════════════════════════════ */
+function calcDuration() {
+    if (!state.fromDate || !state.toDate) return null;
+    const from = new Date(state.fromDate); from.setHours(0,0,0,0);
+    const to   = new Date(state.toDate);   to.setHours(0,0,0,0);
+    const now  = new Date();               now.setHours(0,0,0,0);
+    const totalMs = to - from;
+    if (totalMs < 0) return null;
+    const totalDays   = Math.floor(totalMs / 86400000) + 1;
+    const elapsedMs   = Math.max(0, Math.min(now - from, totalMs));
+    const elapsedDays = Math.floor(elapsedMs / 86400000);
+    return {
+        totalDays,
+        elapsedDays,
+        remainingDays: totalDays - elapsedDays,
+        progress: totalDays > 0 ? (elapsedDays / totalDays) * 100 : 0,
+        isToday: to.toDateString() === now.toDateString() && to >= from
+    };
+}
+
+/* ═══════════════════════════════════════════
+   GRID LAYOUT
+═══════════════════════════════════════════ */
+function recalcGrid() {
+    const dur = calcDuration();
+    if (!dur) return;
+    const MAX_DOTS  = 3650;
+    const totalDots = Math.min(dur.totalDays, MAX_DOTS);
+    const container = DOM.dotGrid.parentElement;
+    const padH      = 24; // horizontal padding each side
+    const padV      = 20; // vertical padding each side
+    const dotSize   = 12;
+    const gap       = 8;
+    const availW    = Math.max(10, container.clientWidth  - padH * 2);
+    const availH    = Math.max(10, container.clientHeight - padV * 2);
+
+    if (state.fillDir === 'horizontal') {
+        // Fill left→right, wrap to next row — columns fit available width
+        const cols    = Math.max(1, Math.floor((availW + gap) / (dotSize + gap)));
+        const rows    = Math.ceil(totalDots / cols);
+        const gridW   = cols * dotSize + (cols - 1) * gap;
+        const gridH   = rows * dotSize + (rows - 1) * gap;
+        DOM.dotGrid.style.gridTemplateColumns = `repeat(${cols}, ${dotSize}px)`;
+        DOM.dotGrid.style.gridTemplateRows    = `repeat(${rows}, ${dotSize}px)`;
+        DOM.dotGrid.style.gridAutoFlow        = 'row';
+        DOM.dotGrid.style.width               = gridW + 'px';
+        DOM.dotGrid.style.height              = gridH + 'px';
+        state.gridCols = cols;
+    } else {
+        // Fill top→bottom per column — rows fit available width (same density),
+        // extra columns grow right.
+        const rows   = Math.max(1, Math.floor((availW + gap) / (dotSize + gap)));
+        const cols   = Math.ceil(totalDots / rows);
+        const gridW  = cols  * dotSize + (cols  - 1) * gap;
+        const gridH  = rows  * dotSize + (rows  - 1) * gap;
+        DOM.dotGrid.style.gridTemplateRows    = `repeat(${rows}, ${dotSize}px)`;
+        DOM.dotGrid.style.gridTemplateColumns = `repeat(${cols}, ${dotSize}px)`;
+        DOM.dotGrid.style.gridAutoFlow        = 'column';
+        DOM.dotGrid.style.width               = gridW + 'px';
+        DOM.dotGrid.style.height              = gridH + 'px';
+        state.gridCols = cols;
+    }
+    DOM.dotGrid.style.gap = `${gap}px`;
+}
+
+/* ═══════════════════════════════════════════
+   DOT RENDER (no wave, no stagger)
+═══════════════════════════════════════════ */
+function renderDots() {
+    const dur = calcDuration();
+    if (!dur) return;
+    const MAX_DOTS  = 3650;
+    const totalDots = Math.min(dur.totalDays, MAX_DOTS);
+    const current   = DOM.dotGrid.children.length;
+
+    // Add missing
+    if (totalDots > current) {
+        for (let i = current; i < totalDots; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'dot';
+            const idx = i; // capture for closure
+            dot.addEventListener('mouseenter', e => showTip(e, idx));
+            dot.addEventListener('mouseleave', hideTip);
+            DOM.dotGrid.appendChild(dot);
+        }
+    } else if (totalDots < current) {
+        for (let i = current - 1; i >= totalDots; i--)
+            DOM.dotGrid.children[i].remove();
+    }
+
+    // Update states
+    Array.from(DOM.dotGrid.children).forEach((dot, i) => {
+        dot.classList.toggle('completed', i < dur.elapsedDays);
+        dot.classList.toggle('current',   i === dur.elapsedDays);
+    });
+}
+
+/* ═══════════════════════════════════════════
+   DISPLAY ORCHESTRATOR
+═══════════════════════════════════════════ */
+function updateDisplay() {
+    const dur = calcDuration();
+    if (!dur) { showEmpty(); return; }
+    hideEmpty();
+    recalcGrid();
+    renderDots();
+    // stats
+    DOM.statDays.textContent   = dur.remainingDays;
+    DOM.statMonths.textContent = Math.floor(dur.remainingDays / 30.44);
+    DOM.statWeeks.textContent  = Math.floor(dur.remainingDays / 7);
+    // progress
+    DOM.progressFill.style.width = dur.progress + '%';
+    DOM.progressPct.textContent  = Math.round(dur.progress) + '%';
+    // confetti
+    if (dur.isToday && !state.targetDone) { state.targetDone = true; confetti(); }
+}
+
+function showEmpty() {
+    DOM.emptyState.style.display      = 'block';
+    DOM.visualization.style.display   = 'none';
+    DOM.stats.style.display           = 'none';
+    DOM.progressSection.style.display = 'none';
+    DOM.emptyIllust.innerHTML = '';
+    for (let i = 0; i < 24; i++) {
+        const d = document.createElement('div');
+        d.className = 'empty-dot';
+        DOM.emptyIllust.appendChild(d);
+    }
+}
+function hideEmpty() {
+    DOM.emptyState.style.display      = 'none';
+    DOM.visualization.style.display   = 'block';
+    DOM.stats.style.display           = 'block';
+    DOM.progressSection.style.display = 'block';
+}
+
+/* ═══════════════════════════════════════════
+   TOOLTIP
+═══════════════════════════════════════════ */
+function showTip(e, index) {
+    if (!state.fromDate) return;
+    const d = new Date(state.fromDate);
+    d.setDate(d.getDate() + index);
+    const ds = d.toLocaleDateString('en-GB', { day:'2-digit', month:'2-digit', year:'2-digit' });
+    const dn = d.toLocaleDateString('en-US', { weekday:'long' });
+    DOM.tooltip.textContent = `${ds} · ${dn}`;
+    DOM.tooltip.classList.add('active');
+    const r = e.target.getBoundingClientRect();
+    DOM.tooltip.style.left = (r.left + r.width / 2) + 'px';
+    DOM.tooltip.style.top  = (r.top - 34) + 'px';
+    DOM.tooltip.style.transform = 'translateX(-50%)';
+}
+function hideTip() { DOM.tooltip.classList.remove('active'); }
+
+/* ═══════════════════════════════════════════
+   CONFETTI
+═══════════════════════════════════════════ */
+function confetti() {
+    const colors = ['#FF453A','#FFFFFF','#FFD60A'];
+    for (let i = 0; i < 50; i++) {
+        const el = document.createElement('div');
+        el.className = 'confetti';
+        el.style.cssText = `left:${Math.random()*100}%;width:10px;height:10px;background:${colors[i%3]};border-radius:50%;`;
+        document.body.appendChild(el);
+        const dur = Math.random()*2000+1500, dist = Math.random()*300+150,
+              ang = (Math.random()*60+60)*(Math.PI/180), t0 = Date.now();
+        const anim = () => {
+            const p = (Date.now()-t0)/dur;
+            if (p < 1) {
+                el.style.transform = `translate(${Math.cos(ang)*dist*p}px,${Math.sin(ang)*dist*p}px) rotate(${p*720}deg)`;
+                el.style.opacity = 1 - p;
+                requestAnimationFrame(anim);
+            } else el.remove();
+        };
+        requestAnimationFrame(anim);
+    }
+}
+
+/* ═══════════════════════════════════════════
+   UTILS
+═══════════════════════════════════════════ */
+function fmt(d)          { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function addDays(d, n)   { const r=new Date(d); r.setDate(r.getDate()+n); return r; }
+function addMonths(d, n) { const r=new Date(d); r.setMonth(r.getMonth()+n); return r; }
+function addYears(d, n)  { const r=new Date(d); r.setFullYear(r.getFullYear()+n); return r; }
+
+/* GO */
+init();
+</script>
+</body>
+</html>
